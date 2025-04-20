@@ -60,17 +60,17 @@
 
   
   class Comms {
-    constructor(use_proto=True){
+    constructor(use_proto=true){
       if (use_proto){
           this.headers = {"Content-Type": "application/x-protobuf"};
         }
       else{
           this.headers = {"Content-Type": "application/json"};
         }
-      this.token = None;
+      this.token = null;
     }
 
-    async request(method='POST', endpoint='/', headers = this.headers, data_body=None,){
+    async request(method='POST', endpoint='/', headers = this.headers, data_body=null,){
       let url = base_url + endpoint;
       // issue request and return response
       return await fetch(url, {
@@ -85,8 +85,8 @@
         this.token = localStorage.getItem('token');
       }
       else{ //fetch jwt token
-        payload = {username: username, password: password};
-        response = this.request('POST', '/login', payload);
+        let payload = {username: username, password: password};
+        let response = this.request('POST', '/login', payload);
         if (response.status === 200){
             data = response.json();
             this.token = data.get("token");
@@ -101,22 +101,22 @@
         
     }
     
-    authenticated_request(method, endpoint, data_body=None,){
+    authenticated_request(method, endpoint, data_body=null,){
         if (! this.token){
             console.log("Error: No token found. Please login or signup first.");
-            return None;
+            return null;
           }
         let url = base_url + endpoint;
-        auth_headers = this.headers;
+        let auth_headers = this.headers;
         auth_headers["Authorization"] = "Bearer "+this.token;
-        response = this.request(
+        let response = this.request(
             method, url, headers=auth_headers, data_body=data_body,
         );
         return response;
       }
 
     get_note(note_name='test-note-1'){
-      data_body = {
+      let data_body = {
         username: this.username, 
         note_name: note_name
       };
@@ -124,14 +124,14 @@
     }
 
     get_note_list(){
-      data_body = {
+      let data_body = {
         username: this.username
       };
       return this.authenticated_request('POST', '/notes', data_body).textContent();
     }
 
     create_note(note_name='test-note-1', note_content=''){
-      data_body = {
+      let data_body = {
         username: this.username, 
         note_name: note_name,
         content: note_content
@@ -140,7 +140,7 @@
     }
 
     delete_note(note_name='test-note-1', note_content=''){
-      data_body = {
+      let data_body = {
         username: this.username, 
         note_name: note_name,
         content: note_content
@@ -155,7 +155,7 @@
   const jar = CodeJar(editor, highlight, options);
   let base_url = 'http://172.26.18.35:8242';
   // let data = {Username: 'username', Password: 'password'};
-  let comms = Comms();
+  let comms = new Comms();
   
   comms.login();
   jar.updateCode(comms.get_note());
