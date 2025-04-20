@@ -70,7 +70,7 @@
       this.token = null;
     }
 
-    async request(method='POST', endpoint='/', headers = this.headers, data_body=null,){
+    async request(method='POST', endpoint='/', headers=this.headers, data_body=null,){
       let url = base_url + endpoint;
       // issue request and return response
       return await fetch(url, {
@@ -106,11 +106,11 @@
             console.log("Error: No token found. Please login or signup first.");
             return null;
           }
-        let url = base_url + endpoint;
+        // let url = base_url + endpoint;
         let auth_headers = this.headers;
         auth_headers["Authorization"] = "Bearer "+this.token;
         let response = this.request(
-            method, url, headers=auth_headers, data_body=data_body,
+            method, endpoint, auth_headers, data_body,
         );
         return response;
       }
@@ -120,14 +120,14 @@
         username: this.username, 
         note_name: note_name
       };
-      return this.authenticated_request('POST', '/get-note', data_body).textContent();
+      return this.authenticated_request('POST', '/get-note', data_body).text();
     }
 
     get_note_list(){
       let data_body = {
         username: this.username
       };
-      return this.authenticated_request('POST', '/notes', data_body).textContent();
+      return this.authenticated_request('POST', '/notes', data_body).text();
     }
 
     create_note(note_name='test-note-1', note_content=''){
@@ -136,7 +136,7 @@
         note_name: note_name,
         content: note_content
       };
-      return this.authenticated_request('POST', '/note', data_body).textContent();
+      return this.authenticated_request('POST', '/note', data_body).text();
     }
 
     delete_note(note_name='test-note-1', note_content=''){
@@ -145,7 +145,7 @@
         note_name: note_name,
         content: note_content
       };
-      return this.authenticated_request('POST', '/del-note', data_body).textContent();
+      return this.authenticated_request('POST', '/del-note', data_body).text();
     }
 
 
@@ -157,10 +157,15 @@
   // let data = {Username: 'username', Password: 'password'};
   let comms = new Comms();
   
-  comms.login();
   jar.updateCode(comms.get_note());
   jar.onUpdate(code => {comms.create_note('test-note-1', code)});
-  
+
+  try{comms.login()}catch{};
+  try{comms.get_note();}catch{};
+
+  try{comms.create_note('test-note-1', 'placeholder text')}catch{};
+  try{comms.delete_note('test-note-1', 'placeholder text')}catch{};
+  try{comms.get_note_list()}catch{};
 
 
 //   const request = new XMLHttpRequest();
