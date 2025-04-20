@@ -81,22 +81,30 @@
       }
 
     login(username='username', password='password'){
-      if (localStorage.getItem('token')){ //already logged in
+      if (localStorage.getItem('token') && localStorage.getItem('token')!=='undefined'){ //already logged in
         this.token = localStorage.getItem('token');
       }
       else{ //fetch jwt token
         let payload = {username: username, password: password};
-        let response = this.request('POST', '/login', payload);
-        if (response.status === 200){
-            data = response.json();
-            this.token = data.get("token");
-            localStorage.setItem('token', this.token);
-            this.username = username;
-            this.password = password;
+        this.request('POST', '/login',this.headers, payload)
+        .then((res) => {
+          console.log(res);
+          if (res.status === 200 || res.status === 204){
+            return res.json();
           }
-        else{
-            console.log("Login failed: "+response.status+" - "+response.text);
+          else{
+              console.log("Login failed: "+res.status+" - "+res.text);
           }
+        })
+        .then((res) => {
+          // let data = res.json();
+          console.log(res)
+          this.token = res.token;
+          localStorage.setItem('token', this.token);
+          this.username = username;
+          this.password = password;
+        });
+        
       }
         
     }
@@ -153,19 +161,20 @@
 
 
   const jar = CodeJar(editor, highlight, options);
-  let base_url = 'http://172.26.18.35:8242';
+  let base_url = 'http://127.0.0.1:8242';
   // let data = {Username: 'username', Password: 'password'};
   let comms = new Comms();
   
-  jar.updateCode(comms.get_note());
-  jar.onUpdate(code => {comms.create_note('test-note-1', code)});
+  try{comms.login();}catch{};
+  try{let temp = comms.get_note();jar.updateCode(temp);}catch{}
+  
+  jar.onUpdate(code => {try{comms.create_note('test-note-1', code);}catch{}});
 
-  try{comms.login()}catch{};
   try{comms.get_note();}catch{};
 
-  try{comms.create_note('test-note-1', 'placeholder text')}catch{};
-  try{comms.delete_note('test-note-1', 'placeholder text')}catch{};
-  try{comms.get_note_list()}catch{};
+  try{comms.create_note('test-note-1', 'placeholder text');}catch{};
+  try{comms.delete_note('test-note-1', 'placeholder text');}catch{};
+  try{comms.get_note_list();}catch{};
 
 
 //   const request = new XMLHttpRequest();
