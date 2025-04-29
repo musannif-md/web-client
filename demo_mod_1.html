@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Musannif 🖊️</title>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      background: #F6F8F8;
+    }
+
+    main {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+    }
+
+    .editor {
+      background: #fff;
+      border-radius: 6px;
+      box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 1px 5px 0 rgba(0, 0, 0, 0.12), 0 3px 1px -2px rgba(0, 0, 0, 0.2);
+      font-family: "Source Code Pro", monospace;
+      font-size: 14px;
+      font-weight: 400;
+      min-height: 240px;
+      letter-spacing: normal;
+      line-height: 20px;
+      padding: 10px;
+      tab-size: 4;
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1 style="text-align:center;font-family:Garamond;color:#000000;">Musannif</h1>
+  <h3 style="text-align:center;font-family:Garamond;color:#000000;">- A Collaborative Markdown Editor</h3>
+  <div>
+    <label>Filename: </label>
+    <input id="inp_note_name" style="text-align: center;"></input>
+    <button id="btn_fetch">Fetch</button>
+    <button id="btn_create">Create</button>
+    <button id="btn_delete">Delete</button>
+    <button id="btn_update">Update</button>
+    <button id="btn_fetch_list">Fetch Note List</button>
+    <button id="btn_login">Log In</button>
+  </div>
+  <div class="editor" data-manual data-gramm="false"></div>
+</main>
+<script type="module">
+  import {CodeJar} from './dist/codejar.js'
+  const editor = document.querySelector('.editor')
+
+  const highlight = editor => {
+    editor.innerHTML = Prism.highlight(editor.textContent, Prism.languages.javascript, 'javascript')
+  }
+  const options = {
+    tab: ' '.repeat(4), // default is '\t'
+    indentOn: /[(\[]$/, // default is /{$/
+    autoclose: { 
+      open: `([{*`, // default is `([{'"`
+      close: `)]}*` // default is `)]}'"`
+    }
+  }
+
+  
+  class Comms {
+    constructor(use_proto=true){
+      if (use_proto){
+          this.headers = {"Content-Type": "application/x-protobuf"};
+        }
+      else{
+          this.headers = {"Content-Type": "application/json"};
+        }
+      this.token = null;
+    }
+
+    async request(method='POST', endpoint='/', headers=this.headers, data_body=null,){
+      let url = base_url + endpoint;
+      // issue request and return response
+      return await fetch(url, {
+          method: method,
+          headers: headers,
+          body: JSON.stringify(data_body)
+        });
+      }
+
+    login(username='username', password='password'){
+      // if (localStorage.getItem('token') && localStorage.getItem('token')!=='undefined'){ //already logged in
+      //   this.token = localStorage.getItem('token');
+      // }
+      // else{ //fetch jwt token
+        let payload = {username: username, password: password};
+        this.request('POST', '/login',this.headers, payload)
+        .then((res) => {
+          console.log(res);
+          if (res.status === 200 || res.status === 204){
+            return res.json();
+          }
+          else{
+              console.log("Login failed: "+res.status+" - "+res.text);
+          }
+        })
+        .then((res) => {
+          // let data = res.json();
+          console.log(res)
+          this.token = res.token;
+          localStorage.setItem('token', this.token);
+          this.username = username;
+          this.password = password;
+        });
+        
+      // }
+        
+    }
+    
+    authenticated_request(method, endpoint, data_body=null,){
+        if (! this.token){
+            console.log("Error: No token found. Please login or signup first.");
+            return null;
+          }
+        // let url = base_url + endpoint;
+        let auth_headers = this.headers;
+        auth_headers["Authorization"] = "Bearer "+this.token;
+        let response = this.request(
+            method, endpoint, auth_headers, data_body,
+        );
+        return response;
+      }
+
+    get_note(note_name='test-note-1'){
+      let data_body = {
+        username: this.username, 
+        note_name: note_name
+      };
+      return this.authenticated_request('POST', '/get-note', data_body)
+        .then((res) => {
+          console.log(res)
+          return res.json();
+        })
+        .then((res) => {
+          console.log(res);
+          jar.updateCode(res.content);
+          return res.content;
+        });
+    }
+
+    get_note_list(){
+      let data_body = {
+        username: this.username
+      };
+      return this.authenticated_request('POST', '/notes', data_body)
+        .then((res) => {
+          console.log(res)
+          return res.json();
+        })
+        .then((res) => {
+          console.log(res);
+          jar.updateCode(JSON.stringify(res));
+          return res.content;
+        });
+    }
+
+    create_note(note_name='test-note-1', note_content=''){
+      let data_body = {
+        username: this.username, 
+        note_name: note_name,
+        content: note_content
+      };
+      return this.authenticated_request('POST', '/note', data_body).text;
+    }
+
+    delete_note(note_name='test-note-1', note_content=''){
+      let data_body = {
+        username: this.username, 
+        note_name: note_name,
+        content: note_content
+      };
+      return this.authenticated_request('POST', '/del-note', data_body).text;
+    }
+
+
+  }
+
+
+  function oncl_btn_fetch(){
+    let note_name = document.getElementById('inp_note_name').value;
+    // try{
+      let txt = comms.get_note(note_name);
+      console.log(txt); 
+      jar.updateCode(txt);
+    // }catch{console.log('failed to fetch note...');};
+  };
+  document.getElementById('btn_fetch').addEventListener('click', oncl_btn_fetch);
+
+  function oncl_btn_create(){
+    let note_name = document.getElementById('inp_note_name').value;
+    try{comms.create_note(note_name, jar.toString());}catch{console.log('failed to create note...');};
+  };
+  document.getElementById('btn_create').addEventListener('click', oncl_btn_create);
+
+  function oncl_btn_delete(){
+    let note_name = document.getElementById('inp_note_name').value;
+    try{comms.delete_note(note_name, jar.toString());}catch{console.log('failed to delete note...');};
+  };
+  document.getElementById('btn_delete').addEventListener('click', oncl_btn_delete);
+
+  function oncl_btn_update(){
+    let note_name = document.getElementById('inp_note_name').value;
+    // add update function here
+  };
+  document.getElementById('btn_update').addEventListener('click', oncl_btn_update);
+
+  function oncl_btn_fetch_list(){
+    try{comms.get_note_list();}catch{console.log('failed to fetch note list...');};
+    // change view/page to display note_name list
+  };
+  document.getElementById('btn_fetch_list').addEventListener('click', oncl_btn_fetch_list);
+  
+  function oncl_btn_login(){
+    // attempt login using default credentials
+    try{comms.login();}catch{console.log('failed to login...');};
+  };
+  document.getElementById('btn_login').addEventListener('click', oncl_btn_login);
+  
+
+
+  const jar = CodeJar(editor, highlight, options);
+  let base_url = 'http://127.0.0.1:8242';
+  // let data = {Username: 'username', Password: 'password'};
+  const comms = new Comms();
+  
+  try{comms.login();}catch{};
+  // try{let temp = comms.get_note();jar.updateCode(temp);}catch{}
+  
+  // jar.onUpdate(code => {try{comms.create_note('test-note-1', code);}catch{}});
+  // jar.onUpdate(code => {
+  //  localStorage.setItem('code', code)
+  // })
+
+
+//   const request = new XMLHttpRequest();
+
+//   try {
+//     request.open("POST", "/login");
+
+//     request.responseType = "json";
+
+//     request.addEventListener("load", () => localStorage.setItem('token', JSON.parse(request.response)['token']));
+//     request.addEventListener("error", () => console.error("XHR error"));
+
+//     request.send();
+//   } catch (error) {
+//     console.error(`XHR error ${request.status}`);
+// }
+
+  
+  //jar.updateCode(localStorage.getItem('code'))
+  //jar.onUpdate(code => {
+  //  localStorage.setItem('code', code)
+  //})
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+</body>
+</html>
